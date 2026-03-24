@@ -1,0 +1,26 @@
+# Configuration Universelle pour Détection de Composants PCB
+path: e:\New_vision_AI\yolo_dataset # ✅ Chemin mis à jour
+train: images/train
+val: images/val
+
+names:
+  0: resistor
+  1: capacitor
+  2: inductor
+  3: diode
+  4: led
+  5: ic
+  6: transistor
+  7: connector
+  8: jumper
+  9: emi_filter
+  10: button
+  11: clock
+  12: transformer
+  13: potentiometer
+  14: heatsink
+  15: fuse
+  16: ferrite_bead
+  17: buzzer
+  18: display
+  19: battery

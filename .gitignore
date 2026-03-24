@@ -1,0 +1,49 @@
+# Vision-AI PCB Component Detection Project
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Models (too large for GitHub)
+*.pt
+*.onnx
+*.engine
+yolo26s.pt
+yolov8n.pt
+yolov8_pcb_final.pt
+
+# Datasets & Scraped Data (keep small samples if needed, but exclude large folders)
+ElectroCom61.zip
+README.txt
+scraped_components/
+yolo_dataset/
+pcb_wacv_2019/
+pcb_wacv_2019_formatted/
+ElectroCom61_extracted/
+ElectroCom61_folder/
+inference_input/
+runs/
+
+# Logs & Debug
+*.log
+debug_*.html
+debug_*.png
+scraping_log.json
+
+# Environment
+.venv/
+env/
+venv/
+ENV/
+
+# Artifacts & Local UI
+.gemini/
+brain/
+walkthrough.md
+task.md
+implementation_plan.md
