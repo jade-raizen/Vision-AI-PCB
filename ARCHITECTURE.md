@@ -10,15 +10,18 @@ Manual PCB reverse engineering is time-consuming and error-prone. This project e
 
 ## 2. System Design
 
-### 2.1 Detection Model
+### 2.1 Detection Models & Optimization
 
-We use **YOLOv8** (You Only Look Once, version 8) from Ultralytics — a state-of-the-art single-shot object detector optimized for real-time inference.
+We mainly use **YOLOv8** and **YOLO11** (Ultralytics) for object detection.
 
-**Why YOLOv8?**
-- Single-pass architecture (detection + classification in one forward pass)
-- Native support for small object detection (critical for SMD components)
-- Extensive augmentation pipeline built-in
-- Easy export to ONNX/TensorRT for edge deployment
+**Model Selection & Hardware Optimization:**
+- **YOLOv8**: Base model for standard component detection.
+- **YOLO11**: New generation model used for high-resolution images to read tiny SMD markings.
+- **OpenVINO (Intel)**: Used to optimize inference on CPUs (local machines without dedicated GPUs).
+- **SAHI (Slicing Aided Hyper Inference)**: To overcome the 640px/1024px input limitation of YOLO, we implement image slicing. This allows the model to "see" tiny components (e.g., 0402 resistors) on very large PCB photographs by processing them in overlapping patches.
+
+**Anomaly Detection (R&D):**
+- **Autoencoder (AE/VAE)**: Inspired by solder joint research, we use a convolutional autoencoder to learn "normal" PCB textures. Deviations in reconstruction error highlight potential defects (solder bridges, missing traces) without requiring a labeled defect dataset.
 
 ### 2.2 Dataset Strategy
 
@@ -111,9 +114,20 @@ The model is evaluated using standard COCO metrics:
 4. **Visual similarity**: Many SMD packages look identical across component types (a 0805 resistor vs. 0805 capacitor)
 5. **Anti-bot arms race**: Distributors continuously update their protection, requiring scraper maintenance
 
-## 6. References
+## 6. Software Stack & Integrations
 
-- Ultralytics YOLOv8: https://docs.ultralytics.com/
+- **Frontend**: Vanilla HTML5/CSS3 (Glassmorphism design), FontAwesome, Inter typography.
+- **Backend**: Flask (Python 3.10+), PyTorch, Ultralytics YOLO.
+- **Optimization**: Intel OpenVINO for CPU-accelerated inference.
+- **Micro-Detection**: SAHI (Slicing Aided Hyper Inference) for small component detection.
+- **Post-Processing**: Convolutional Autoencoders (CAE) for anomaly detection on component patches.
+
+## 7. References
+
+- Ultralytics YOLO11: https://docs.ultralytics.com/
 - WACV 2019 PCB Dataset: https://sites.google.com/view/wacv2019-pcb-dataset
 - FiftyOne Documentation: https://docs.voxel51.com/
-- Octopart API: https://octopart.com/
+- Local Inspiration Sources: [./inspiration_sources](./inspiration_sources)
+  - `pcb-tracer`: Techniques for PCB trace extraction.
+  - `pcb_fault_detection_ui`: UI patterns for defect detection.
+  - `Anomaly-detection-for-solder`: Solder joint inspection methods.

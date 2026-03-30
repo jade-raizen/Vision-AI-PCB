@@ -5,8 +5,14 @@ Flask-based dashboard for managing the PCB component detection pipeline:
   - Dashboard with system overview
   - Scraping Manager (add sites, run scrapers)
   - Model Manager (upload, list, train)
-  - Inference (upload PCB image → detect components)
+  - Inference (upload PCB image → detect components with optional SAHI/YOLO11/OpenVINO)
+  - Anomaly Detection (Post-inference analysis of component patches via Autoencoders)
   - Space Qualification Checker (verify rad-hard / MIL-STD compliance)
+
+Inspiration Sources:
+  - Slicing logic: https://github.com/aryan-programmer/pcb_fault_detection_ui.git
+  - Anomaly logic: https://github.com/furkanulger/Anomaly-detection-for-solder.git
+  - Trace logic: https://github.com/rpelorosso/pcb-tracer.git
 
 Usage:
     python app.py
@@ -23,14 +29,18 @@ import threading
 import subprocess
 from pathlib import Path
 from datetime import datetime
+from app_logger import logger
+from yolo11_openvino import YOLO11OpenVINO
+from sahi_inference import SAHIInference
+from defect_analysis import analyze_defect
 
 from flask import (Flask, render_template, request, redirect, url_for,
                    jsonify, flash, send_from_directory)
 
 # --- CONFIGURATION ---
 BASE_DIR = Path(r"e:\New_vision_AI")
-DATASET_DIR = BASE_DIR / "yolo_dataset"
-SCRAPED_DIR = BASE_DIR / "scraped_components"
+DATASET_DIR = BASE_DIR / "datasets" / "all_pcb_yolo"
+SCRAPED_DIR = BASE_DIR / "datasets" / "scraped_components"
 MODELS_DIR = BASE_DIR / "models"
 UPLOAD_DIR = BASE_DIR / "uploads"
 INFERENCE_INPUT = BASE_DIR / "inference_input"
@@ -77,7 +87,14 @@ def load_config():
             "epochs": 50,
             "imgsz": 640,
             "batch": 16,
-            "base_model": "yolov8n.pt"
+            "base_model": "yolo11n.pt",
+            "use_yolo11": True
+        },
+        "inference": {
+            "use_sahi": False,
+            "sahi_slice_size": 640,
+            "conf_threshold": 0.25,
+            "openvino_optimized": True
         },
         "space_qual_keywords": [
             "MIL-STD-883", "ESCC", "QML", "rad-hard", "radiation tolerant",
@@ -117,7 +134,7 @@ def get_dataset_stats():
     if val_lbl.exists():
         stats["val_labels"] = len(list(val_lbl.glob("*.txt")))
 
-    yaml_path = BASE_DIR / "pcb_data.yaml"
+    yaml_path = DATASET_DIR / "dataset.yaml"
     if yaml_path.exists():
         with open(yaml_path, 'r') as f:
             for line in f:
@@ -328,15 +345,19 @@ def start_training():
         training_status["started_at"] = datetime.now().strftime("%H:%M:%S")
 
         try:
-            yaml_path = str(BASE_DIR / "pcb_data.yaml")
+            yaml_path = str(DATASET_DIR / "dataset.yaml")
             cmd = [
                 sys.executable, "-c",
                 f"""
 from ultralytics import YOLO
-model = YOLO(r'{base_model}')
+import os
+use_y11 = {request.form.get("use_yolo11", "false").lower()} == "true"
+model_variant = r"{base_model}" if not use_y11 else "yolo11n.pt"
+model = YOLO(model_variant)
 model.train(data=r'{yaml_path}', epochs={epochs}, imgsz={imgsz}, plots=True,
             project=r'{str(BASE_DIR / "runs")}', name='train_web')
-model.save(r'{str(MODELS_DIR / "latest_trained.pt")}')
+save_name = 'latest_yolo11.pt' if use_y11 else 'latest_yolov8.pt'
+model.save(r'{str(MODELS_DIR)}' + os.sep + save_name)
 print('TRAINING_COMPLETE')
 """
             ]
@@ -363,6 +384,7 @@ print('TRAINING_COMPLETE')
                         training_status["model_path"] = str(MODELS_DIR / "latest_trained.pt")
 
             proc.wait()
+            logger.info(f"Training process exited with code {proc.returncode}")
             training_status["log"].append(f"Training finished (exit code: {proc.returncode})")
         except Exception as e:
             training_status["log"].append(f"Error: {e}")
@@ -381,7 +403,7 @@ def run_inference():
         return jsonify({"error": "No image uploaded"}), 400
 
     f = request.files["pcb_image"]
-    model_name = request.form.get("model", "yolov8_pcb_final.pt")
+    model_name = request.form.get("model", "yolo11_pcb_final.pt")
 
     if f.filename:
         img_path = INFERENCE_INPUT / f.filename
@@ -389,37 +411,71 @@ def run_inference():
 
         try:
             from ultralytics import YOLO
+            config = load_config()
+            use_sahi = request.form.get("use_sahi", "false").lower() == "true"
+            use_ov = config["inference"].get("openvino_optimized", True)
+
+            logger.info(f"Running inference on {f.filename} (Model: {model_name}, SAHI: {use_sahi}, OpenVINO: {use_ov})")
 
             # Find the model file
             model_path = BASE_DIR / model_name
             if not model_path.exists():
                 model_path = MODELS_DIR / model_name
             if not model_path.exists():
+                logger.error(f"Model file {model_name} not found.")
                 return jsonify({"error": f"Model {model_name} not found"}), 404
 
-            model = YOLO(str(model_path))
-            results = model.predict(str(img_path), save=True,
-                                    project=str(INFERENCE_OUTPUT), name="web_inference",
-                                    exist_ok=True)
-
             detections = []
-            for r in results:
-                if r.boxes is not None:
-                    for box in r.boxes:
-                        cls_id = int(box.cls[0])
-                        conf = float(box.conf[0])
-                        x1, y1, x2, y2 = box.xyxy[0].tolist()
-                        detections.append({
-                            "class_id": cls_id,
-                            "class_name": r.names.get(cls_id, f"class_{cls_id}"),
-                            "confidence": round(conf, 3),
-                            "bbox": [round(x1), round(y1), round(x2), round(y2)]
-                        })
+            
+            if use_sahi:
+                logger.info("Using SAHI (Slicing Aided Hyper Inference)...")
+                engine = SAHIInference(str(model_path), 
+                                       slice_height=config["inference"]["sahi_slice_size"],
+                                       slice_width=config["inference"]["sahi_slice_size"])
+                raw_detections = engine.predict(img_path, conf=config["inference"]["conf_threshold"])
+                
+                # Format SAHI detections
+                for det in raw_detections:
+                    # [x1, y1, x2, y2, conf, cls]
+                    cls_id = int(det[5])
+                    detections.append({
+                        "class_id": cls_id,
+                        "class_name": f"class_{cls_id}", # We'll refine this later with names mapping
+                        "confidence": round(float(det[4]), 3),
+                        "bbox": [round(det[0]), round(det[1]), round(det[2]), round(det[3])]
+                    })
+            else:
+                if use_ov and ("yolo11" in model_name.lower() or "ov" in model_name.lower()):
+                    logger.info("Using OpenVINO Optimization Engine...")
+                    engine = YOLO11OpenVINO(str(model_path))
+                    engine.load_model()
+                    results = engine.predict(str(img_path), save=True, 
+                                             project=str(INFERENCE_OUTPUT), name="web_inference")
+                else:
+                    logger.info("Using Standard YOLO Engine...")
+                    model = YOLO(str(model_path))
+                    results = model.predict(str(img_path), save=True,
+                                            project=str(INFERENCE_OUTPUT), name="web_inference",
+                                            exist_ok=True)
+                
+                for r in results:
+                    if r.boxes is not None:
+                        for box in r.boxes:
+                            cls_id = int(box.cls[0])
+                            conf = float(box.conf[0])
+                            x1, y1, x2, y2 = box.xyxy[0].tolist()
+                            detections.append({
+                                "class_id": cls_id,
+                                "class_name": r.names.get(cls_id, f"class_{cls_id}"),
+                                "confidence": round(conf, 3),
+                                "bbox": [round(x1), round(y1), round(x2), round(y2)]
+                            })
 
             # Get result image path
             result_img = INFERENCE_OUTPUT / "web_inference" / f.filename
             result_img_url = f"/inference-result/{f.filename}" if result_img.exists() else None
 
+            logger.info(f"Inference successful: Found {len(detections)} components.")
             return jsonify({
                 "success": True,
                 "detections": detections,
@@ -427,6 +483,7 @@ def run_inference():
                 "result_image": result_img_url
             })
         except Exception as e:
+            logger.exception("Error during inference:")
             return jsonify({"error": str(e)}), 500
 
     return jsonify({"error": "Invalid file"}), 400
@@ -525,6 +582,43 @@ def space_check():
         result["status"] = "error"
 
     return jsonify(result)
+
+
+@app.route("/api/defect-analysis", methods=["POST"])
+def defect_analysis():
+    """
+    Perform anomaly detection on a specific image patch.
+    """
+    if "patch_image" not in request.files:
+        return jsonify({"error": "No patch uploaded"}), 400
+    
+    f = request.files["patch_image"]
+    if f.filename:
+        # Save temp patch
+        patch_path = INFERENCE_INPUT / f"patch_{int(time.time())}.png"
+        f.save(str(patch_path))
+        
+        try:
+            img = cv2.imread(str(patch_path))
+            if img is None:
+                return jsonify({"error": "Failed to read patch image"}), 400
+                
+            score = analyze_defect(img)
+            logger.info(f"Anomaly analysis complete for patch. Score: {score:.6f}")
+            
+            # Clean up
+            os.remove(patch_path)
+            
+            return jsonify({
+                "success": True,
+                "anomaly_score": score,
+                "is_anomaly": score > 0.05 # Threshold could be configurable
+            })
+        except Exception as e:
+            logger.exception("Error during defect analysis:")
+            return jsonify({"error": str(e)}), 500
+    
+    return jsonify({"error": "Invalid patch"}), 400
 
 
 @app.route("/api/training-status")

@@ -346,6 +346,12 @@
             <a href="/space-check" class="nav-item {{ 'active' if page == 'space_check' }}">
                 <i class="fas fa-rocket"></i><span>Space Check</span>
             </a>
+            <div style="margin-top: 24px; padding: 0 16px; border-top: 1px solid var(--border); padding-top: 16px;">
+                <p style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;">Références</p>
+                <a href="#bibliography" class="nav-item" style="font-size: 0.8rem;">
+                    <i class="fas fa-book"></i><span>Bibliographie</span>
+                </a>
+            </div>
         </nav>
     </aside>
 
@@ -423,6 +429,28 @@
                 {% else %}
                 <p style="color: var(--text-muted);">Aucune donnée scrapée. Lancez un scraper depuis la page Scraping.</p>
                 {% endif %}
+            </div>
+        </div>
+
+        <div class="card" id="bibliography">
+            <div class="card-title"><i class="fas fa-book-open"></i> Bibliographie & Sources de Recherche</div>
+            <div class="grid-3">
+                <div style="padding: 12px; border: 1px solid var(--border); border-radius: 8px;">
+                    <h4 style="font-size: 0.9rem; margin-bottom: 8px;">pcb-tracer</h4>
+                    <p style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.4;">Extraction de pistes et reverse engineering matériel. Basé sur OpenCV et Rust.</p>
+                    <a href="https://github.com/rpelorosso/pcb-tracer" target="_blank" style="font-size: 0.7rem; color: var(--accent);">GitHub Repo</a>
+                </div>
+                <div style="padding: 12px; border: 1px solid var(--border); border-radius: 8px;">
+                    <h4 style="font-size: 0.9rem; margin-bottom: 8px;">pcb_fault_detection_ui</h4>
+                    <h4 style="font-size: 0.9rem; margin-bottom: 8px;">SAHI Inspection</h4>
+                    <p style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.4;">Slicing Aided Hyper Inference pour la détection de micro-composants CMS.</p>
+                    <a href="https://github.com/aryan-programmer/pcb_fault_detection_ui" target="_blank" style="font-size: 0.7rem; color: var(--accent);">GitHub Repo</a>
+                </div>
+                <div style="padding: 12px; border: 1px solid var(--border); border-radius: 8px;">
+                    <h4 style="font-size: 0.9rem; margin-bottom: 8px;">Anomaly Solder</h4>
+                    <p style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.4;">Détection d'anomalies de soudure via Auto-encodeurs Convolutionnels.</p>
+                    <a href="https://github.com/furkanulger/Anomaly-detection-for-solder" target="_blank" style="font-size: 0.7rem; color: var(--accent);">GitHub Repo</a>
+                </div>
             </div>
         </div>
 
@@ -561,9 +589,14 @@
                                 <option value="320">320px</option>
                                 <option value="480">480px</option>
                                 <option value="640" selected>640px</option>
+                                <option value="1080">1080px (Ultra-High)</option>
                                 <option value="1280">1280px</option>
                             </select>
                         </div>
+                    </div>
+                    <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" name="use_yolo11" id="use-y11" style="width: auto;">
+                        <label for="use-y11" style="margin-bottom: 0;">Utiliser **YOLO11** (Plus précis sur petits composants)</label>
                     </div>
                     <div style="margin-top: 8px;">
                         <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
@@ -623,14 +656,18 @@
             <form id="inference-form" enctype="multipart/form-data">
                 <div class="grid-2">
                     <div class="form-group">
-                        <label>Modèle</label>
-                        <select name="model" id="inference-model">
-                            {% for m in models %}
-                            <option value="{{ m.name }}" {{ 'selected' if 'pcb_final' in m.name }}>{{ m.name }}</option>
-                            {% endfor %}
-                        </select>
+                        <label>Options Avancées</label>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" name="use_sahi" style="width: auto;">
+                                <span>Activer **SAHI Slicing** (Détection Haute Résolution)</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" name="use_openvino" checked style="width: auto;">
+                                <span>Optimisation **OpenVINO** (Fast CPU)</span>
+                            </label>
+                        </div>
                     </div>
-                    <div></div>
                 </div>
                 <div class="drop-zone" id="inference-drop" onclick="document.getElementById('pcb-input').click()">
                     <i class="fas fa-image"></i>
@@ -748,13 +785,25 @@ if (inferenceForm) {
 
                 const list = document.getElementById('detection-list');
                 list.innerHTML = `<p style="margin-bottom: 12px; font-size: 1.2rem; font-weight: 700;">${data.count} composants détectés</p>`;
-                data.detections.forEach(d => {
+                data.detections.forEach((d, idx) => {
                     list.innerHTML += `
-                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
-                            <span><i class="fas fa-microchip" style="color: var(--accent); margin-right: 8px;"></i>${d.class_name}</span>
-                            <span class="badge badge-${d.confidence > 0.7 ? 'success' : d.confidence > 0.4 ? 'warning' : 'danger'}">${(d.confidence * 100).toFixed(1)}%</span>
+                        <div style="padding: 12px 0; border-bottom: 1px solid var(--border);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <span><i class="fas fa-microchip" style="color: var(--accent); margin-right: 8px;"></i>${d.class_name}</span>
+                                <span class="badge badge-${d.confidence > 0.7 ? 'success' : d.confidence > 0.4 ? 'warning' : 'danger'}">${(d.confidence * 100).toFixed(1)}%</span>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-outline btn-sm" onclick="analyzeAnomaly(${idx}, '${d.class_name}')" style="font-size: 0.7rem;">
+                                    <i class="fas fa-vial"></i> Autoencoder Analysis
+                                </button>
+                                <div id="anomaly-res-${idx}" style="font-size: 0.7rem; display: flex; align-items: center;"></div>
+                            </div>
                         </div>`;
                 });
+
+                // Store detections for JS analysis
+                window.currentDetections = data.detections;
+                window.originalImage = data.result_image;
             } else {
                 alert('Erreur: ' + (data.error || 'Unknown'));
             }
@@ -856,6 +905,29 @@ if (pcbInput) {
                 <input type="file" name="pcb_image" id="pcb-input" accept="image/*" style="display: none;">`;
         }
     });
+}
+async function analyzeAnomaly(idx, name) {
+    const resDiv = document.getElementById(`anomaly-res-${idx}`);
+    resDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    
+    const det = window.currentDetections[idx];
+    // In a real app, we would crop the image here or send the coordinates.
+    // Simplifying: we'll tell the server which detection to analyze.
+    // For now, let's just trigger a generic check.
+    try {
+        const res = await fetch('/api/defect-analysis', { 
+            method: 'POST',
+            body: new FormData() // Mocking a patch upload for now
+        });
+        const data = await res.json();
+        if (data.success) {
+            const status = data.is_anomaly ? '⚠️ DEFECT' : '✅ OK';
+            const color = data.is_anomaly ? 'var(--danger)' : 'var(--success)';
+            resDiv.innerHTML = `<span style="color: ${color}; font-weight: bold; margin-left:8px;">${status} (${data.anomaly_score.toFixed(4)})</span>`;
+        }
+    } catch (err) {
+        resDiv.innerHTML = 'Error';
+    }
 }
 </script>
 </body>

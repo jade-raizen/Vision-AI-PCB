@@ -19,15 +19,20 @@ yolov8_pcb_final.pt
 
 # Datasets & Scraped Data (keep small samples if needed, but exclude large folders)
 ElectroCom61.zip
+*.zip
 README.txt
 scraped_components/
 yolo_dataset/
+datasets/
+all_pcb_yolo/
 pcb_wacv_2019/
 pcb_wacv_2019_formatted/
 ElectroCom61_extracted/
 ElectroCom61_folder/
 inference_input/
 runs/
+logs/
+inspiration_sources/
 
 # Logs & Debug
 *.log

@@ -1,0 +1,22 @@
+path: E:\New_vision_AI\datasets\all_pcb_yolo
+train: images/train
+val: images/val
+
+names:
+  0: open
+  1: short
+  2: mousebite
+  3: spur
+  4: copper
+  5: pin-hole
+  6: resistor
+  7: capacitor
+  8: inductor
+  9: diode
+  10: led
+  11: ic
+  12: transistor
+  13: connector
+  14: jumper
+  15: emi_filter
+  16: button

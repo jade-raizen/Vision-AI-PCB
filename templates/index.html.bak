@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vision-AI PCB — Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #111827;
+            --bg-card: rgba(17, 24, 39, 0.8);
+            --bg-glass: rgba(30, 41, 59, 0.6);
+            --border: rgba(99, 102, 241, 0.2);
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent: #6366f1;
+            --accent-glow: rgba(99, 102, 241, 0.3);
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #06b6d4;
+            --gradient-1: linear-gradient(135deg, #6366f1, #8b5cf6);
+            --gradient-2: linear-gradient(135deg, #06b6d4, #3b82f6);
+            --gradient-3: linear-gradient(135deg, #22c55e, #06b6d4);
+            --gradient-4: linear-gradient(135deg, #f59e0b, #ef4444);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Animated background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background:
+                radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(6, 182, 212, 0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 50%);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Layout */
+        .app-container { display: flex; min-height: 100vh; position: relative; z-index: 1; }
+
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid var(--border);
+            padding: 24px 0;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            z-index: 10;
+        }
+        .sidebar-logo {
+            padding: 0 24px 24px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+        .sidebar-logo h1 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .sidebar-logo span { font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 4px; }
+
+        .nav-items { flex: 1; padding: 0 12px; }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            margin-bottom: 4px;
+        }
+        .nav-item:hover { background: var(--bg-glass); color: var(--text-primary); }
+        .nav-item.active {
+            background: var(--accent-glow);
+            color: var(--accent);
+            border: 1px solid var(--border);
+        }
+        .nav-item i { width: 20px; text-align: center; font-size: 1rem; }
+
+        /* Main content */
+        .main { flex: 1; margin-left: 260px; padding: 32px; }
+        .page-header { margin-bottom: 32px; }
+        .page-header h2 { font-size: 1.8rem; font-weight: 700; margin-bottom: 4px; }
+        .page-header p { color: var(--text-secondary); font-size: 0.95rem; }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+        .card-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        /* Stats grid */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 3px;
+        }
+        .stat-card:nth-child(1)::after { background: var(--gradient-1); }
+        .stat-card:nth-child(2)::after { background: var(--gradient-2); }
+        .stat-card:nth-child(3)::after { background: var(--gradient-3); }
+        .stat-card:nth-child(4)::after { background: var(--gradient-4); }
+        .stat-value { font-size: 2rem; font-weight: 700; }
+        .stat-label { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; }
+        .stat-icon { position: absolute; top: 16px; right: 16px; font-size: 1.5rem; opacity: 0.3; }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+        .btn-primary { background: var(--gradient-1); color: white; }
+        .btn-primary:hover { transform: scale(1.03); box-shadow: 0 4px 20px var(--accent-glow); }
+        .btn-success { background: var(--gradient-3); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+        .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-sm { padding: 6px 14px; font-size: 0.8rem; }
+
+        /* Forms */
+        .form-group { margin-bottom: 16px; }
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+        input[type="text"], input[type="number"], input[type="url"], select, input[type="file"] {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.9rem;
+            transition: border-color 0.2s;
+        }
+        input:focus, select:focus { outline: none; border-color: var(--accent); }
+
+        /* Table */
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        td { font-size: 0.9rem; }
+
+        /* Progress bar */
+        .progress-bar {
+            height: 8px;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 12px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: var(--gradient-1);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-success { background: rgba(34,197,94,0.15); color: var(--success); }
+        .badge-warning { background: rgba(245,158,11,0.15); color: var(--warning); }
+        .badge-danger { background: rgba(239,68,68,0.15); color: var(--danger); }
+        .badge-info { background: rgba(6,182,212,0.15); color: var(--info); }
+
+        /* Log console */
+        .log-console {
+            background: #000;
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            color: #4ade80;
+            max-height: 300px;
+            overflow-y: auto;
+            line-height: 1.6;
+        }
+        .log-console .log-line { opacity: 0.9; }
+
+        /* Space check result */
+        .space-result {
+            border-radius: 12px;
+            padding: 24px;
+            margin-top: 20px;
+            text-align: center;
+            display: none;
+        }
+        .space-result.show { display: block; animation: fadeIn 0.4s ease; }
+        .space-result.qualified { background: rgba(34,197,94,0.1); border: 2px solid var(--success); }
+        .space-result.possibly { background: rgba(245,158,11,0.1); border: 2px solid var(--warning); }
+        .space-result.commercial { background: rgba(239,68,68,0.1); border: 2px solid var(--danger); }
+        .space-result .result-icon { font-size: 3rem; margin-bottom: 12px; }
+        .space-result .result-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 8px; }
+
+        /* Inference result */
+        #inference-result {
+            margin-top: 20px;
+            display: none;
+        }
+        #inference-result.show { display: block; animation: fadeIn 0.4s ease; }
+        #inference-result img { max-width: 100%; border-radius: 12px; border: 1px solid var(--border); }
+
+        /* Grid layouts */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .pulse { animation: pulse 2s infinite; }
+
+        /* Flash messages */
+        .flash {
+            padding: 12px 20px;
+            border-radius: 10px;
+            margin-bottom: 16px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: fadeIn 0.3s ease;
+        }
+        .flash-success { background: rgba(34,197,94,0.15); color: var(--success); border: 1px solid rgba(34,197,94,0.3); }
+        .flash-error { background: rgba(239,68,68,0.15); color: var(--danger); border: 1px solid rgba(239,68,68,0.3); }
+        .flash-info { background: rgba(6,182,212,0.15); color: var(--info); border: 1px solid rgba(6,182,212,0.3); }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .sidebar { width: 70px; }
+            .sidebar .nav-item span, .sidebar-logo span, .sidebar-logo h1 span { display: none; }
+            .main { margin-left: 70px; }
+            .grid-2, .grid-3 { grid-template-columns: 1fr; }
+        }
+
+        /* Drop zone */
+        .drop-zone {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .drop-zone:hover, .drop-zone.dragover {
+            border-color: var(--accent);
+            background: var(--accent-glow);
+        }
+        .drop-zone i { font-size: 2.5rem; color: var(--text-muted); margin-bottom: 12px; display: block; }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <h1>🔬 <span>Vision-AI</span></h1>
+            <span>PCB Component Detection</span>
+        </div>
+        <nav class="nav-items">
+            <a href="/" class="nav-item {{ 'active' if page == 'dashboard' }}">
+                <i class="fas fa-th-large"></i><span>Dashboard</span>
+            </a>
+            <a href="/scraping" class="nav-item {{ 'active' if page == 'scraping' }}">
+                <i class="fas fa-spider"></i><span>Scraping</span>
+            </a>
+            <a href="/training" class="nav-item {{ 'active' if page == 'training' }}">
+                <i class="fas fa-brain"></i><span>Training</span>
+            </a>
+            <a href="/inference" class="nav-item {{ 'active' if page == 'inference' }}">
+                <i class="fas fa-search"></i><span>Inference</span>
+            </a>
+            <a href="/space-check" class="nav-item {{ 'active' if page == 'space_check' }}">
+                <i class="fas fa-rocket"></i><span>Space Check</span>
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main">
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for cat, msg in messages %}
+        <div class="flash flash-{{ cat }}">
+            <i class="fas fa-{% if cat == 'success' %}check-circle{% elif cat == 'error' %}exclamation-circle{% else %}info-circle{% endif %}"></i>
+            {{ msg }}
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <!-- ======================== DASHBOARD ======================== -->
+        {% if page == 'dashboard' %}
+        <div class="page-header">
+            <h2>Dashboard</h2>
+            <p>Vue d'ensemble du pipeline de détection PCB</p>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <i class="fas fa-images stat-icon"></i>
+                <div class="stat-value">{{ stats.train_images }}</div>
+                <div class="stat-label">Images d'entraînement</div>
+            </div>
+            <div class="stat-card">
+                <i class="fas fa-tags stat-icon"></i>
+                <div class="stat-value">{{ stats.classes }}</div>
+                <div class="stat-label">Classes de composants</div>
+            </div>
+            <div class="stat-card">
+                <i class="fas fa-cube stat-icon"></i>
+                <div class="stat-value">{{ models|length }}</div>
+                <div class="stat-label">Modèles disponibles</div>
+            </div>
+            <div class="stat-card">
+                <i class="fas fa-download stat-icon"></i>
+                <div class="stat-value">{{ scraped|length }}</div>
+                <div class="stat-label">Types scrapés</div>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-title">Modèles entraînés</div>
+                <table>
+                    <thead><tr><th>Nom</th><th>Taille</th><th>Date</th></tr></thead>
+                    <tbody>
+                    {% for m in models %}
+                    <tr>
+                        <td><i class="fas fa-cube" style="color: var(--accent); margin-right: 8px;"></i>{{ m.name }}</td>
+                        <td>{{ m.size_mb }} MB</td>
+                        <td>{{ m.modified }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% if not models %}<tr><td colspan="3" style="color:var(--text-muted)">Aucun modèle trouvé</td></tr>{% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Données scrapées</div>
+                {% if scraped %}
+                {% for comp, count in scraped.items() %}
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                    <span>{{ comp }}</span>
+                    <span class="badge badge-info">{{ count }} images</span>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p style="color: var(--text-muted);">Aucune donnée scrapée. Lancez un scraper depuis la page Scraping.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- ======================== SCRAPING ======================== -->
+        {% elif page == 'scraping' %}
+        <div class="page-header">
+            <h2><i class="fas fa-spider" style="color: var(--accent);"></i> Gestionnaire de Scraping</h2>
+            <p>Ajoutez des sites, lancez les scrapers pour enrichir votre dataset</p>
+        </div>
+
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-title">Sites configurés</div>
+                <table>
+                    <thead><tr><th>Site</th><th>Statut</th><th>Actions</th></tr></thead>
+                    <tbody>
+                    {% for site in config.scraping_sites %}
+                    <tr>
+                        <td>
+                            <strong>{{ site.name }}</strong><br>
+                            <small style="color: var(--text-muted);">{{ site.url }}</small>
+                        </td>
+                        <td>
+                            {% if site.enabled %}
+                            <span class="badge badge-success">Actif</span>
+                            {% else %}
+                            <span class="badge badge-danger">Inactif</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <form method="POST" action="/api/run-scraper" style="display: inline;">
+                                <input type="hidden" name="site_idx" value="{{ loop.index0 }}">
+                                <button type="submit" class="btn btn-primary btn-sm" {{ 'disabled' if scraping_status.running }}>
+                                    <i class="fas fa-play"></i> Lancer
+                                </button>
+                            </form>
+                            <a href="/api/toggle-site/{{ loop.index0 }}" class="btn btn-outline btn-sm">
+                                <i class="fas fa-toggle-{{ 'on' if site.enabled else 'off' }}"></i>
+                            </a>
+                            <a href="/api/remove-site/{{ loop.index0 }}" class="btn btn-danger btn-sm"
+                               onclick="return confirm('Supprimer ce site ?')">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Ajouter un site</div>
+                <form method="POST" action="/api/add-site">
+                    <div class="form-group">
+                        <label>Nom du site</label>
+                        <input type="text" name="site_name" placeholder="ex: DigiKey" required>
+                    </div>
+                    <div class="form-group">
+                        <label>URL</label>
+                        <input type="url" name="site_url" placeholder="https://www.digikey.com" required>
+                    </div>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-plus"></i> Ajouter le site
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        {% if scraping_status.running %}
+        <div class="card" id="scraping-live">
+            <div class="card-title"><span class="pulse">🔴</span> Scraping en cours — {{ scraping_status.site }}</div>
+            <p>Images trouvées: <strong>{{ scraping_status.images_found }}</strong></p>
+            <div class="log-console" id="scraping-log">
+                {% for line in scraping_status.log %}
+                <div class="log-line">{{ line }}</div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card">
+            <div class="card-title">Données existantes</div>
+            {% if scraped %}
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px;">
+                {% for comp, count in scraped.items() %}
+                <div style="background: var(--bg-secondary); border-radius: 8px; padding: 16px; text-align: center;">
+                    <div style="font-size: 1.5rem; font-weight: 700; color: var(--accent);">{{ count }}</div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">{{ comp }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p style="color: var(--text-muted);">Pas encore de données scrapées.</p>
+            {% endif %}
+        </div>
+
+        <!-- ======================== TRAINING ======================== -->
+        {% elif page == 'training' %}
+        <div class="page-header">
+            <h2><i class="fas fa-brain" style="color: var(--accent);"></i> Entraînement</h2>
+            <p>Uploadez un modèle de base, configurez et lancez l'entraînement</p>
+        </div>
+
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-title">Upload un modèle</div>
+                <form method="POST" action="/api/upload-model" enctype="multipart/form-data">
+                    <div class="drop-zone" onclick="this.querySelector('input').click()" id="model-drop">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>Cliquez ou glissez un fichier <strong>.pt</strong></p>
+                        <small style="color: var(--text-muted);">YOLOv8 pré-entraîné ou personnalisé</small>
+                        <input type="file" name="model_file" accept=".pt" style="display: none;" onchange="this.form.submit()">
+                    </div>
+                </form>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Lancer un entraînement</div>
+                <form method="POST" action="/api/start-training">
+                    <div class="form-group">
+                        <label>Modèle de base</label>
+                        <select name="base_model">
+                            {% for m in models %}
+                            <option value="{{ m.path }}" {{ 'selected' if 'yolov8n' in m.name }}>{{ m.name }} ({{ m.size_mb }}MB)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Epochs</label>
+                            <input type="number" name="epochs" value="50" min="1" max="500">
+                        </div>
+                        <div class="form-group">
+                            <label>Image Size</label>
+                            <select name="imgsz">
+                                <option value="320">320px</option>
+                                <option value="480">480px</option>
+                                <option value="640" selected>640px</option>
+                                <option value="1280">1280px</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="margin-top: 8px;">
+                        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
+                            Dataset: {{ stats.train_images }} images train / {{ stats.val_images }} val — {{ stats.classes }} classes
+                        </p>
+                        <button type="submit" class="btn btn-primary" {{ 'disabled' if training_status.running }}>
+                            <i class="fas fa-rocket"></i> Lancer l'entraînement
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% if training_status.running %}
+        <div class="card" id="training-live">
+            <div class="card-title"><span class="pulse">🔴</span> Entraînement en cours (depuis {{ training_status.started_at }})</div>
+            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px;">
+                <span style="font-size: 1.5rem; font-weight: 700; color: var(--accent);">{{ training_status.progress }}%</span>
+                <span>Epoch {{ training_status.epoch }} / {{ training_status.total_epochs }}</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: {{ training_status.progress }}%"></div>
+            </div>
+            <div class="log-console" id="training-log">
+                {% for line in training_status.log[-20:] %}
+                <div class="log-line">{{ line }}</div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card">
+            <div class="card-title">Modèles disponibles</div>
+            <table>
+                <thead><tr><th>Modèle</th><th>Taille</th><th>Dernière modification</th></tr></thead>
+                <tbody>
+                {% for m in models %}
+                <tr>
+                    <td><i class="fas fa-cube" style="color: var(--accent); margin-right: 8px;"></i>{{ m.name }}</td>
+                    <td>{{ m.size_mb }} MB</td>
+                    <td>{{ m.modified }}</td>
+                </tr>
+                {% endfor %}
+                {% if not models %}<tr><td colspan="3" style="color:var(--text-muted)">Aucun modèle</td></tr>{% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ======================== INFERENCE ======================== -->
+        {% elif page == 'inference' %}
+        <div class="page-header">
+            <h2><i class="fas fa-search" style="color: var(--accent);"></i> Inférence</h2>
+            <p>Uploadez une image de PCB pour détecter les composants</p>
+        </div>
+
+        <div class="card">
+            <form id="inference-form" enctype="multipart/form-data">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Modèle</label>
+                        <select name="model" id="inference-model">
+                            {% for m in models %}
+                            <option value="{{ m.name }}" {{ 'selected' if 'pcb_final' in m.name }}>{{ m.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div></div>
+                </div>
+                <div class="drop-zone" id="inference-drop" onclick="document.getElementById('pcb-input').click()">
+                    <i class="fas fa-image"></i>
+                    <p><strong>Cliquez</strong> ou glissez une image PCB ici</p>
+                    <small style="color: var(--text-muted);">JPG, PNG — max 200MB</small>
+                    <input type="file" name="pcb_image" id="pcb-input" accept="image/*" style="display: none;">
+                </div>
+                <div style="margin-top: 16px; text-align: center;">
+                    <button type="submit" class="btn btn-primary" id="run-inference-btn">
+                        <i class="fas fa-search"></i> Détecter les composants
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div id="inference-result">
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title">Résultat</div>
+                    <img id="result-image" src="" alt="Detection result">
+                </div>
+                <div class="card">
+                    <div class="card-title">Détections</div>
+                    <div id="detection-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ======================== SPACE CHECK ======================== -->
+        {% elif page == 'space_check' %}
+        <div class="page-header">
+            <h2><i class="fas fa-rocket" style="color: var(--accent);"></i> Qualification Spatiale</h2>
+            <p>Vérifiez si un composant est qualifié spatial en utilisant les données Octopart</p>
+        </div>
+
+        <div class="card">
+            <form id="space-form">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Numéro de pièce (MPN)</label>
+                        <input type="text" name="mpn" id="space-mpn" placeholder="ex: LM124ADRG4, JANS2N2222A, 5962-8760701XA" required>
+                    </div>
+                    <div style="display: flex; align-items: end; padding-bottom: 16px;">
+                        <button type="submit" class="btn btn-primary" id="space-check-btn">
+                            <i class="fas fa-satellite"></i> Vérifier la qualification
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div id="space-result" class="space-result">
+            <div class="result-icon" id="space-icon"></div>
+            <div class="result-title" id="space-title"></div>
+            <div id="space-confidence" style="margin-bottom: 12px;"></div>
+            <div class="progress-bar" style="max-width: 300px; margin: 0 auto 16px;">
+                <div class="progress-fill" id="space-progress" style="width: 0%"></div>
+            </div>
+            <div id="space-details" style="text-align: left; max-width: 500px; margin: 0 auto;"></div>
+            <div style="margin-top: 16px;">
+                <a id="space-octopart-link" href="#" target="_blank" class="btn btn-outline btn-sm">
+                    <i class="fas fa-external-link-alt"></i> Voir sur Octopart
+                </a>
+            </div>
+        </div>
+
+        {% endif %}
+    </main>
+</div>
+
+<script>
+// --- Auto-refresh for training/scraping status ---
+{% if page == 'training' and training_status.running %}
+setInterval(async () => {
+    const res = await fetch('/api/training-status');
+    const data = await res.json();
+    if (data.running) {
+        document.querySelector('.progress-fill').style.width = data.progress + '%';
+        document.querySelector('#training-live .card-title span').textContent = data.progress + '%';
+    } else {
+        location.reload();
+    }
+}, 5000);
+{% endif %}
+
+{% if page == 'scraping' and scraping_status.running %}
+setInterval(async () => {
+    const res = await fetch('/api/scraping-status');
+    const data = await res.json();
+    if (!data.running) location.reload();
+}, 5000);
+{% endif %}
+
+// --- Inference form ---
+const inferenceForm = document.getElementById('inference-form');
+if (inferenceForm) {
+    inferenceForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('run-inference-btn');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Détection en cours...';
+        btn.disabled = true;
+
+        const formData = new FormData(inferenceForm);
+        try {
+            const res = await fetch('/api/run-inference', { method: 'POST', body: formData });
+            const data = await res.json();
+
+            if (data.success) {
+                const resultDiv = document.getElementById('inference-result');
+                resultDiv.classList.add('show');
+
+                if (data.result_image) {
+                    document.getElementById('result-image').src = data.result_image;
+                }
+
+                const list = document.getElementById('detection-list');
+                list.innerHTML = `<p style="margin-bottom: 12px; font-size: 1.2rem; font-weight: 700;">${data.count} composants détectés</p>`;
+                data.detections.forEach(d => {
+                    list.innerHTML += `
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                            <span><i class="fas fa-microchip" style="color: var(--accent); margin-right: 8px;"></i>${d.class_name}</span>
+                            <span class="badge badge-${d.confidence > 0.7 ? 'success' : d.confidence > 0.4 ? 'warning' : 'danger'}">${(d.confidence * 100).toFixed(1)}%</span>
+                        </div>`;
+                });
+            } else {
+                alert('Erreur: ' + (data.error || 'Unknown'));
+            }
+        } catch (err) {
+            alert('Erreur de connexion: ' + err);
+        } finally {
+            btn.innerHTML = '<i class="fas fa-search"></i> Détecter les composants';
+            btn.disabled = false;
+        }
+    });
+}
+
+// --- Space check form ---
+const spaceForm = document.getElementById('space-form');
+if (spaceForm) {
+    spaceForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('space-check-btn');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Vérification...';
+        btn.disabled = true;
+
+        const formData = new FormData(spaceForm);
+        try {
+            const res = await fetch('/api/space-check', { method: 'POST', body: formData });
+            const data = await res.json();
+
+            const result = document.getElementById('space-result');
+            result.className = 'space-result show';
+
+            const statusMap = {
+                'space_qualified': { icon: '🛰️', title: 'QUALIFIÉ SPATIAL', class: 'qualified', color: 'var(--success)' },
+                'possibly_qualified': { icon: '⚠️', title: 'POSSIBLEMENT QUALIFIÉ', class: 'possibly', color: 'var(--warning)' },
+                'commercial_with_potential': { icon: '🔍', title: 'COMMERCIAL (Potentiel)', class: 'possibly', color: 'var(--warning)' },
+                'commercial': { icon: '❌', title: 'COMMERCIAL — Non qualifié', class: 'commercial', color: 'var(--danger)' },
+                'error': { icon: '⚠️', title: 'ERREUR', class: 'commercial', color: 'var(--danger)' }
+            };
+
+            const s = statusMap[data.status] || statusMap['commercial'];
+            result.classList.add(s.class);
+            document.getElementById('space-icon').textContent = s.icon;
+            document.getElementById('space-title').textContent = s.title;
+            document.getElementById('space-title').style.color = s.color;
+            document.getElementById('space-confidence').innerHTML = `Confiance: <strong>${data.confidence}%</strong>`;
+            document.getElementById('space-progress').style.width = data.confidence + '%';
+            document.getElementById('space-progress').style.background = s.color;
+
+            const details = document.getElementById('space-details');
+            details.innerHTML = '';
+            if (data.details && data.details.length) {
+                data.details.forEach(d => {
+                    details.innerHTML += `<div style="padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.85rem;">
+                        <i class="fas fa-info-circle" style="color: var(--accent); margin-right: 8px;"></i>${d}
+                    </div>`;
+                });
+            }
+            if (data.keywords_found && data.keywords_found.length) {
+                details.innerHTML += `<div style="margin-top: 12px; font-size: 0.85rem; color: var(--text-muted);">
+                    Mots-clés trouvés: <strong>${data.keywords_found.join(', ')}</strong>
+                </div>`;
+            }
+
+            document.getElementById('space-octopart-link').href = data.octopart_url;
+        } catch (err) {
+            alert('Erreur: ' + err);
+        } finally {
+            btn.innerHTML = '<i class="fas fa-satellite"></i> Vérifier la qualification';
+            btn.disabled = false;
+        }
+    });
+}
+
+// --- Drag & Drop for file inputs ---
+document.querySelectorAll('.drop-zone').forEach(zone => {
+    zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zone.classList.remove('dragover');
+        const input = zone.querySelector('input[type="file"]');
+        if (input && e.dataTransfer.files.length) {
+            input.files = e.dataTransfer.files;
+            if (input.closest('form').querySelector('[type="submit"]')) {
+                // For model upload, auto-submit
+                if (input.name === 'model_file') input.closest('form').submit();
+            }
+        }
+    });
+});
+
+// File name display
+const pcbInput = document.getElementById('pcb-input');
+if (pcbInput) {
+    pcbInput.addEventListener('change', function() {
+        if (this.files[0]) {
+            const dropZone = document.getElementById('inference-drop');
+            dropZone.innerHTML = `<i class="fas fa-check-circle" style="color: var(--success);"></i>
+                <p>${this.files[0].name}</p>
+                <small style="color: var(--text-muted);">${(this.files[0].size / (1024*1024)).toFixed(1)} MB</small>
+                <input type="file" name="pcb_image" id="pcb-input" accept="image/*" style="display: none;">`;
+        }
+    });
+}
+</script>
+</body>
+</html>

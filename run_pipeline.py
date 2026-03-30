@@ -11,15 +11,14 @@ def run_step(name, command):
         sys.exit(1)
 
 def main():
-    # 1. Scraping
-    run_step("SCRAPING DATA", "python e:\\New_vision_AI\\scraper.py")
+    # 1. Unification des datasets
+    run_step("UNIFYING DATASETS", "python e:\\New_vision_AI\\unify_all_to_yolo.py")
     
-    # 2. Extracting labels (optional if only classification images added, 
-    # but good to re-run if raw PCB data was added)
-    run_step("EXTRACTING LABELS", "python e:\\New_vision_AI\\extract_labels.py")
+    # 2. Training (Optimisé CPU)
+    run_step("TRAINING MODEL (YOLO11)", "python e:\\New_vision_AI\\train_full.py")
     
-    # 3. Training
-    run_step("TRAINING MODEL", "python e:\\New_vision_AI\\VisionIA.py")
+    # 3. Inference de test
+    run_step("VERIFYING PIPELINE", "python e:\\New_vision_AI\\inference.py")
     
     print("\n[PIPELINE COMPLETE] Your model is trained and ready for inference!")
 

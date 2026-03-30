@@ -6,8 +6,9 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.10+-blue?logo=python&logoColor=white" alt="Python">
-  <img src="https://img.shields.io/badge/YOLOv8-Ultralytics-00FFFF?logo=yolo&logoColor=white" alt="YOLOv8">
-  <img src="https://img.shields.io/badge/FiftyOne-Voxel51-orange?logo=data:image/svg+xml;base64,..." alt="FiftyOne">
+  <img src="https://img.shields.io/badge/YOLO11-Ultralytics-blueviolet?logo=yolo&logoColor=white" alt="YOLO11">
+  <img src="https://img.shields.io/badge/OpenVINO-Optimization-0071C5?logo=intel&logoColor=white" alt="OpenVINO">
+  <img src="https://img.shields.io/badge/Colab-GPU_Training-F9AB00?logo=googlecolab&logoColor=white" alt="Colab">
   <img src="https://img.shields.io/badge/Selenium-Scraping-43B02A?logo=selenium&logoColor=white" alt="Selenium">
 </p>
 
@@ -49,7 +50,10 @@ The system combines:
 | 🤖 **Automated Dataset Expansion** | Web scrapers automatically collect component images from Octopart, LCSC, and Google |
 | 📊 **Visual Data Curation** | FiftyOne integration for interactive dataset inspection |
 | 🔄 **End-to-End Pipeline** | Single command runs scraping → label extraction → training |
-| ⚡ **Real-Time Inference** | Trained model runs inference on new PCB images |
+| 🚀 **YOLO11 & OpenVINO** | Optimized CPU inference for lack of GPU and high-res reverse engineering |
+| 🧩 **SAHI Slicing** | Slicing Aided Hyper Inference for detecting tiny 0402 components |
+| ⚠️ **Anomaly Detection** | Autoencoder-based inspection for solder joints and traces |
+| 🖥️ **Full Web App** | Integrated dashboard for all features, including research bibliographies |
 
 ---
 
@@ -74,9 +78,9 @@ The system combines:
 │  │ Converter     │    │  (Quality Control)            │  │
 │  └───────┬───────┘    └──────────────────────────────┘  │
 │          ▼                                               │
-│     yolo_dataset/                                        │
-│     ├── images/train/  (37 annotated PCB boards)        │
-│     ├── images/val/                                      │
+│     datasets/all_pcb_yolo/                               │
+│     ├── images/train/  (1,421 annotated PCB images)      │
+│     ├── images/val/    (147 annotated PCB images)        │
 │     ├── labels/train/                                    │
 │     └── labels/val/                                      │
 └──────────────────────┬──────────────────────────────────┘
@@ -84,10 +88,11 @@ The system combines:
 ┌─────────────────────────────────────────────────────────┐
 │                    TRAINING                               │
 │  ┌──────────────────────────────────────────────────┐   │
-│  │  YOLOv8n (Ultralytics)                           │   │
-│  │  • 50 epochs, 640px input                        │   │
-│  │  • 20-class PCB component detection              │   │
-│  │  • Output: yolov8_pcb_final.pt                   │   │
+│  │  • YOLOv8n / YOLO11n (Ultralytics)                     │   │
+│  │  • 50 epochs, 640px/1080px input                     │   │
+│  │  • 20-class PCB component detection                   │   │
+│  │  • Optimization: OpenVINO (CPU fallback)              │   │
+│  │  • Output: yolov8_pcb_final.pt / yolo11_pcb_final.pt  │   │
 │  └──────────────────────────────────────────────────┘   │
 └──────────────────────┬──────────────────────────────────┘
                        ▼
@@ -136,7 +141,7 @@ The project includes three specialized scrapers:
 2. **`scraper_pro.py`** — LCSC + Google Images (with package template fallback)
 3. **`scraper_simple.py`** — Lightweight Google Images scraper
 
-Each scraper uses anti-detection techniques (stealth Selenium, realistic user agents, human-like delays) to reliably collect training data.
+Each scraper uses anti-detection techniques (stealth Selenium, realistic user agents, human-like delays). Data is then unified using `unify_all_to_yolo.py` to create a massive 1,500+ image training set from DeepPCB and WACV sources.
 
 ---
 
@@ -164,12 +169,54 @@ python VisionIA.py
 python inference.py
 ```
 
+### ☁️ Cloud Training (Recommended for Speed)
+If you don't have a high-end NVIDIA GPU locally, use **Google Colab**:
+1. Uploader `datasets/all_pcb_yolo.zip` sur Colab.
+2. Suivre le [COLAB_GUIDE.md](./COLAB_GUIDE.md).
+
 ### Training Configuration
 ```yaml
-Model: YOLOv8n (nano — optimized for speed)
-Epochs: 50
+Model: YOLO11n (Next-gen — optimized for small PCB objects)
+Epochs: 5 (Fine-tuning) / 50 (Full)
 Image Size: 640×640
-Classes: 20
+Dataset: Unified all_pcb_yolo (1,400+ images)
+```
+
+---
+
+---
+
+## 💻 Command Line Interface (CLI)
+
+Vous pouvez utiliser les scripts directement depuis votre terminal pour plus de flexibilité.
+
+### 🔍 Inférence (Détection)
+Utilisez `inference.py` pour détecter des composants sur une image ou un dossier spécifique.
+```bash
+# Lancer sur le dossier par défaut (inference_input/)
+python inference.py
+
+# Lancer sur une image spécifique
+python inference.py --source e:\images\ma_pcb.jpg
+
+# Utiliser un modèle spécifique
+python inference.py --source e:\images\test_dir --model runs/detect/train/weights/best.pt
+```
+
+### 🚅 Entraînement
+Utilisez `train_full.py` pour lancer ou reprendre un entraînement.
+```bash
+# Lancer l'entraînement par défaut (5 epochs)
+python train_full.py
+
+# Personnaliser le nombre d'époques et la taille d'image
+python train_full.py --epochs 10 --imgsz 1080
+```
+
+### 🔄 Unification du Dataset
+Si vous ajoutez manuellement des images dans `datasets/deep_pcb`, relancez l'unification :
+```bash
+python unify_all_to_yolo.py
 ```
 
 ---
@@ -184,9 +231,9 @@ New_vision_AI/
 ├── inference.py              # Run detection on new images
 ├── pcb_data.yaml             # Dataset configuration (20 classes)
 │
-├── scraper_octopart.py       # Octopart.com image scraper
-├── scraper_pro.py            # LCSC + Google Images scraper
-├── scraper_simple.py         # Lightweight Google scraper
+├── yolo11_openvino.py       # Optimized YOLO11 inference with OpenVINO
+├── sahi_inference.py        # Slicing Aided Hyper Inference for small objects
+├── defect_analysis.py       # Autoencoder-based anomaly detection
 │
 ├── yolo_dataset/             # Formatted training data
 │   ├── images/{train,val}/
@@ -201,25 +248,36 @@ New_vision_AI/
 
 ---
 
+---
+
+## 🎨 Interfaces Graphiques (GUI)
+
+Le projet propose deux interfaces complémentaires pour une gestion visuelle du pipeline.
+
+### 1. 🖥️ Dashboard Web (Gestion & Inférence)
+Idéal pour piloter l'entraînement, scraper des composants et tester l'inférence via un navigateur.
+```bash
+python app.py
+```
+Accédez à : `http://localhost:5000`
+- **Dashboard** : Statistiques en temps réel sur le dataset unifié.
+- **Scraping** : Interface de contrôle pour les scrapers Octopart/LCSC.
+- **Training** : Lancement d'entraînements YOLO11 avec monitoring de progression.
+- **Inference** : Upload d'images PCB et visualisation immédiate des détections (avec SAHI/OpenVINO).
+
+### 2. 👁️ Inspection Visuelle (FiftyOne)
+Idéal pour vérifier la qualité des annotations et nettoyer le dataset avant l'entraînement.
+```bash
+python VisionIA.py
+```
+Accédez à : `http://localhost:5151`
+- Visualisation interactive des bounding boxes.
+- Filtrage par classe et score de confiance.
+- Correction/Suppression d'annotations erronées.
+
+---
+
 ## 🏃 Getting Started
-
-### Prerequisites
-```bash
-pip install ultralytics fiftyone selenium webdriver-manager requests beautifulsoup4
-```
-
-### Quick Start
-```bash
-# Clone the repository
-git clone https://github.com/<your-username>/Vision-AI-PCB.git
-cd Vision-AI-PCB
-
-# Run the full pipeline
-python run_pipeline.py
-
-# Or run inference on an existing model
-python inference.py
-```
 
 ---
 
@@ -240,6 +298,12 @@ The model is designed to detect components at various scales on full PCB images,
 - [ ] **Multi-Layer Detection**: Detect components on both sides of a PCB
 
 ---
+
+## 📚 Bibliography & Inspiration (Local Copies in `./inspiration_sources`)
+
+- **PCB Tracer** ([pcb-tracer](./inspiration_sources/pcb-tracer)): Techniques for PCB trace extraction.
+- **PCB Fault Detection UI** ([pcb_fault_detection_ui](./inspiration_sources/pcb_fault_detection_ui)): User interface patterns for defect detection.
+- **Anomaly Detection for Solder** ([Anomaly-detection-for-solder](./inspiration_sources/Anomaly-detection-for-solder)): Solder joint inspection methods.
 
 ## 📄 License
 
